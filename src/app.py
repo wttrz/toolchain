@@ -13,7 +13,6 @@ def get_arguments():
     cluster = subparsers.add_parser(name="cluster", formatter_class=rawdescription, description=src.cluster.__doc__, help="cluster search terms")
     cluster.add_argument("kwfile", type=filetype, help="keywords file (.txt or .csv)")
     cluster.add_argument("-s", type=str, help="similarity algorithm", default="leven", metavar="[leven, demerau]")
-    import numpy as np
     cluster.add_argument("-d", type=float, help="damping", default=0.9, metavar="[0.5 - 1.0]")
     return parser.parse_args()
 
