@@ -1,0 +1,9 @@
+app.spec
+/build
+/dist
+/env
+*__pycache__/
+*pyc
+*egg*
+*DS_Store*
+*swp
