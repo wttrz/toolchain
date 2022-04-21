@@ -1,15 +1,16 @@
 """
-This clustering operation works on lists of keywords. 
+Clusters a list of keywords.
 
-The algorithm computes the pairwise Levenshtein or Damerau-Levenshtein distance between each keyword.
-This distance measures the difference between strings, i.e., how different the strings are.
-Think of it as the editing distance between them. The lower, the number, the closer the strings.
+The algorithm computes the pairwise editing distance between each keyword.
+This distance measures how different the strings are. The lower the number the closer they are.
 
-Once the keywords have been turned into numbers, they're clustered using the Affinity Propagation algorithm.
-The output is a one-level clustering scheme that works on keyword lists in any language.
+Then it clusters keywords using the Affinity Propagation algorithm.
+It outputs a one-level clustering scheme that works on keyword lists in any language.
 
-Levenshtein and Damerau-Levenshtein are pretty similar, the default Levenshtein will work most of the time.
-The damping factor should be between 0.5 and 1.0 and, the higher it is, the more clusters will be formed.
+Notes:
+
+- the leven and damerau algorithms are similar, the default works fine
+- the higher the damping factor, the more clusters you'll get
 """
 
 import io
