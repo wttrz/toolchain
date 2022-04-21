@@ -8,6 +8,6 @@ Installation
 
 Open your terminal, assuming you have Python3 installed, you can run
 
-  python3 -m pip install https://bitbucket.org/ttrz/toolchain/get/0e31c0edd2de.zip
+  python3 -m pip install https://github.com/wttrz/toolchain/archive/refs/heads/main.zip
 
 Use of virtual environments is optional.
