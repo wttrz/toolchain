@@ -7,6 +7,8 @@ from src.competition import enumerate_competition
 from src.competition import __doc__ as competition_doc
 from src.kwlist import get_kwlist
 from src.kwlist import __doc__ as kwlist_doc
+from src.urlmap import map_domain
+from src.urlmap import __doc__ as urlmap_doc
 
 
 def get_arguments():
@@ -26,6 +28,11 @@ def get_arguments():
     kwlist.add_argument("kwfile", type=filetype, help="keywords file (.txt or .csv)")
     kwlist.add_argument("-l", type=str, help="location", default="Sweden")
     kwlist.add_argument("-c", type=int, help="cutoff point", default=50)
+    urlmap = subparsers.add_parser(name="urlmap", formatter_class=rawdescription, description=urlmap_doc, help="map queries to pages")
+    urlmap.add_argument("domain", type=str, help="domain to map")
+    urlmap.add_argument("-d", type=str, help="semrush database", default="SE")
+    urlmap.add_argument("-l", type=int, help="output rows", default=30)
+    urlmap.add_argument("-f", type=filetype, help="keywords (.txt or .csv)")
     return parser.parse_args()
 
 
@@ -49,6 +56,13 @@ def main():
         cutoff = arguments.c
         fpath = pathlib.Path(f"~/Desktop/kwlist_{uid}.csv").expanduser()
         get_kwlist(keywords, location, cutoff, fpath)
+    if arguments.command == "urlmap":
+        domain = arguments.domain
+        database = arguments.d
+        limit = arguments.l
+        upload = arguments.f.read().splitlines()
+        fpath = pathlib.Path(f"~/Desktop/urlmap_{uid}.csv").expanduser()
+        map_domain(domain, database, limit, upload, fpath)
     print(f"complete ~ find your output @ {fpath}")
         
 
