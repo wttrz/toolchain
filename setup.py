@@ -5,7 +5,7 @@ with open("requirements.txt") as f:
 
 setup(
     name="serene",
-    version="v0.0.1",
+    version="v0.0.2",
     description="common seo operations",
     author="wttrz",
     install_requires=required,

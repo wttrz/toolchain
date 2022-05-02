@@ -5,6 +5,8 @@ This module collects metadata from the SERPs for a set of search terms.
 The metadata can then be used to support on page optimization for a given page.
 """
 
+# TODO: add functionality to create the content brief itself (?) along with the suggestions
+# TODO: explain this in docstring above too
 # TODO: add mobile friendliness api, pagespeed api
 # TODO: add (??)    schema = html.xpath("//*[@itemtype]/@itemtype")
 # TODO: add (??)    meta_names = html.xpath("//meta/@name")
