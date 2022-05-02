@@ -10,5 +10,5 @@ setup(
     author="wttrz",
     install_requires=required,
     packages=find_packages(),
-    entry_points={"console_scripts": ["serene=src.app:main"]},
+    entry_points={"console_scripts": ["serene=src.cli:main"]},
 )
