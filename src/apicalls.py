@@ -1,29 +1,28 @@
 import sys
-from src.authentication import get_api_key, get_api_credit
+
+import requests
+
+from src.authentication import get_api_credit, get_api_key
+from src.constants import VALUESERP_LOCATIONS
+
+session = requests.Session()
 
 
-def build_valueserp_calls(keywords, location):
-    apikey = get_api_key("valueserp")
+def query_valueserp(term, location):
     get_api_credit("valueserp")
-    supported_locations = {
-            "Norway": ["google.no", "no", "no"],
-            "Sweden": ["google.se", "se", "sv"],
-            "Canada": ["google.ca", "ca", "en"],
-            "Denmark": ["google.dk", "dk", "da"],
-            "Finland": ["google.fi", "fi", "fi"],
-            "United States": ["google.com", "us", "en"],
-            "United Kingdom": ["google.co.uk", "uk", "en"],
-            }
-    if location.title() not in supported_locations:
-        sys.exit("[error] unsupported location")
-    locale = supported_locations.get(location.title())
-    google_domain = locale[0]
-    gl = locale[1]
-    hl = locale[2]
-    url = f"https://api.valueserp.com/search?api_key={apikey}"
-    geo = f"&gl={gl}" + f"&location={location}"
-    lang = f"&hl={hl}"
-    domain = f"&google_domain={google_domain}"
-    datafmt = "&output=json&flatten_results=true"
-    api_calls = [url + f"&q={k}" + lang + geo + domain + datafmt for k in keywords]
-    return api_calls
+    api_key = get_api_key("valueserp")
+    locale = VALUESERP_LOCATIONS.get(location.title())
+    endpoint = f"https://api.valueserp.com/search?api_key={api_key}"
+    domain = locale[0] if locale else "google.se"
+    country = locale[1] if locale else "se"
+    language = locale[2] if locale else "sv"
+    parameters = {
+        "q": term,
+        "gl": country,
+        "hl": language,
+        "location": location.title(),
+        "google_domain": domain,
+        "output": "json",
+        "flatten_results": "true",
+    }
+    return session.get(endpoint, params=parameters).json()

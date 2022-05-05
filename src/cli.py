@@ -1,24 +1,29 @@
-import uuid
-import pathlib
 import argparse
-from src.cluster import cluster_keywords
+import pathlib
+import uuid
+
 from src.cluster import __doc__ as cluster_doc
-from src.competition import enumerate_competition
+from src.cluster import cluster_keywords
 from src.competition import __doc__ as competition_doc
-from src.kwlist import get_kwlist
+from src.competition import enumerate_competition
 from src.kwlist import __doc__ as kwlist_doc
-from src.urlmap import map_domain
-from src.urlmap import __doc__ as urlmap_doc
-from src.onpage import pfetch
+from src.kwlist import get_kwlist
 from src.onpage import __doc__ as onpage_doc
+from src.onpage import suggest
+
+# from src.opp2 import suggest  # change the file name to onpage
+from src.urlmap import __doc__ as urlmap_doc
+from src.urlmap import map_domain
 
 
 def get_arguments():
     filetype = argparse.FileType("r", encoding="utf-8")
     defaulthelp = argparse.ArgumentDefaultsHelpFormatter
     rawdescription = argparse.RawDescriptionHelpFormatter
+
     parser = argparse.ArgumentParser(description="SEO Operations.")
     subparsers = parser.add_subparsers(help="commands", dest="command")
+
     cluster = subparsers.add_parser(
         name="cluster",
         formatter_class=rawdescription,
@@ -36,6 +41,7 @@ def get_arguments():
     cluster.add_argument(
         "-d", type=float, help="damping factor", default=0.9, metavar="[0.5 - 1.0]"
     )
+
     competition = subparsers.add_parser(
         name="competition",
         formatter_class=rawdescription,
@@ -44,6 +50,7 @@ def get_arguments():
     )
     competition.add_argument("kwfile", type=filetype, help="keyword file (.txt or .csv)")
     competition.add_argument("-l", type=str, help="location", default="Sweden")
+
     kwlist = subparsers.add_parser(
         name="kwlist",
         formatter_class=rawdescription,
@@ -53,6 +60,7 @@ def get_arguments():
     kwlist.add_argument("kwfile", type=filetype, help="keywords file (.txt or .csv)")
     kwlist.add_argument("-l", type=str, help="location", default="Sweden")
     kwlist.add_argument("-c", type=int, help="cutoff point", default=50)
+
     urlmap = subparsers.add_parser(
         name="urlmap",
         formatter_class=rawdescription,
@@ -103,17 +111,17 @@ def main():
         domain = arguments.domain
         database = arguments.d
         limit = arguments.l
-        upload = arguments.f.read().splitlines()
+        upload = arguments.f.read().splitlines() if arguments.f else None
         fpath = pathlib.Path(f"~/Desktop/urlmap_{uid}.csv").expanduser()
         map_domain(domain, database, limit, upload, fpath)
-
     if arguments.command == "onpage":
         url = arguments.url
         term = arguments.term
         secondary = arguments.s
         location = arguments.l
         fpath = pathlib.Path(f"~/Desktop/onpage_{uid}.txt").expanduser()
-        pfetch(url, term, secondary, location, fpath)
+        # pfetch(url, term, secondary, location, fpath)
+        suggest(url, term, secondary, location, fpath)
 
     print(f"complete ~ find your output @ {fpath}")
 

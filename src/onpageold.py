@@ -5,17 +5,6 @@ This module collects metadata from the SERPs for a set of search terms.
 The metadata can then be used to support on page optimization for a given page.
 """
 
-# connection error handling
-# > https://www.blog.pythonlibrary.org/2021/09/28/python-101-how-to-generate-a-pdf/
-# > https://www.blog.pythonlibrary.org/2010/03/08/a-simple-step-by-step-reportlab-tutorial/
-# Emil's suggestion > https://precisdigital.atlassian.net/wiki/spaces/TECHDATAMENU/pages/2114715676/On-page+Optimization+Tool
-# Inputs > url, primary query, secondary queries, target language
-# Calculations > aggregated search volume
-# Mobile Friendliness Summary (target url)
-# Pagespeed Score Mobile + Desktop (target url)
-# Metadata > title, meta description, h1, h2, canonical, status code, meta robots, links (anchor text / destination), word count
-# Classifications > title len, description len, primary kw in meta and title
-
 # TODO: add functionality to create the content brief itself (?) along with the suggestions
 # TODO: explain this in docstring above too
 # TODO: add mobile friendliness api, pagespeed api
@@ -28,75 +17,15 @@ The metadata can then be used to support on page optimization for a given page.
 # TODO: add (??)    hreflang = html.xpath("//*[@hreflang]/@hreflang")
 
 import sys
-import requests
-import lxml.html
-from src.constants import VALUESERP_LOCATIONS
 from concurrent.futures import ThreadPoolExecutor
-from src.authentication import get_api_credit, get_api_key
 
+import lxml.html
+import requests
+
+from src.authentication import get_api_credit, get_api_key
+from src.constants import VALUESERP_LOCATIONS
 
 session = requests.Session()
-
-
-def get_response(html):
-    # handle all fucking errors (connection errors, empty response, etc, etc.)
-    pass
-
-
-def get_title(html):
-    pass
-
-
-def get_description(html):
-    pass
-
-
-def get_h1(html):
-    pass
-
-
-def get_h2(html):
-    pass
-
-
-def get_canonical(html):
-    pass
-
-
-def get_hreflagn(html):
-    pass
-
-
-def get_links(html):
-    pass
-
-
-def get_images(html):
-    pass
-
-
-def get_metarobots(html):
-    pass
-
-
-def get_wordcount(html):
-    pass
-
-
-def run_pagespeed_test():
-    pass
-
-
-def run_mobile_friendliness_test():
-    pass
-
-
-def collect_page_metadata():
-    pass
-
-
-def collect_serps(term, location):
-    pass
 
 
 def get_page_data(url):
@@ -144,11 +73,9 @@ def get_serps(terms, location):
         # the queries and questions are not coming up
         for f in futures:
             r = f.json()
-            rs = [r["query"] for r in r["related_searches"]]
-            rq = [r["question"] for r in r["related_questions"]]
             serps_links = [r["link"] for r in r["organic_results"] if "link" in r]
             domain_links = [l for l in serps_links if not "google" in l]
-    return {"searches": rs, "questions": rq, "results": domain_links}
+    return {"results": domain_links}
 
 
 def pfetch(url, term, terms, location, fpath):
@@ -184,17 +111,6 @@ def pfetch(url, term, terms, location, fpath):
     flat_h2s = [item.strip() for sublist in h2s for item in sublist]
 
     with open(fpath, "w") as f:
-        f.write("-" * 50)
-        f.write("\n")
-        f.write("RECOMMENDED QUERIES:\n\n")
-        for i in serps["questions"]:
-            f.write(i)
-            f.write("\n")
-        for i in serps["searches"]:
-            f.write(i)
-            f.write("\n")
-        f.write("\n")
-
         f.write("-" * 50)
         f.write("\n")
         f.write("URLS:\n\n")

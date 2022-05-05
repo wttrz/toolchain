@@ -1,19 +1,50 @@
 """
-Constructs a keyword list based on SERPs suggestions.
+Construct a keyword set based on SERPs suggestions.
 
-Given a list of keywords, it recursively fetches related questions and searches until cutoff point is met.
+Given a list of keywords, this algorithm recursively fetches related questions and searches until a cutoff point is met.
 """
 
-import requests
-import pandas as pd
-from src.apicalls import build_valueserp_calls
 import sys
 from concurrent.futures import ThreadPoolExecutor
 
+import pandas as pd
+import requests
+
+from src.authentication import get_api_credit, get_api_key
 
 session = requests.Session()
 
+# TODO: use the get_valueserp queries intead of using build_valueserp_calls
 
+
+def build_valueserp_calls(keywords, location):
+    apikey = get_api_key("valueserp")
+    get_api_credit("valueserp")
+    supported_locations = {
+        "Norway": ["google.no", "no", "no"],
+        "Sweden": ["google.se", "se", "sv"],
+        "Canada": ["google.ca", "ca", "en"],
+        "Denmark": ["google.dk", "dk", "da"],
+        "Finland": ["google.fi", "fi", "fi"],
+        "United States": ["google.com", "us", "en"],
+        "United Kingdom": ["google.co.uk", "uk", "en"],
+    }
+    if location.title() not in supported_locations:
+        sys.exit("[error] unsupported location")
+    locale = supported_locations.get(location.title())
+    google_domain = locale[0]
+    gl = locale[1]
+    hl = locale[2]
+    url = f"https://api.valueserp.com/search?api_key={apikey}"
+    geo = f"&gl={gl}" + f"&location={location}"
+    lang = f"&hl={hl}"
+    domain = f"&google_domain={google_domain}"
+    datafmt = "&output=json&flatten_results=true"
+    api_calls = [url + f"&q={k}" + lang + geo + domain + datafmt for k in keywords]
+    return api_calls
+
+
+# TODO: check how i resolved this in the on page module
 def collect_suggestions(response):
     related = list()
     if "related_searches" in response:
@@ -26,10 +57,11 @@ def collect_suggestions(response):
 
 
 def get_kwlist(keywords, location, cutoff, fpath):
+    total = len(keywords)
+    print(f"[info] collecting keyword list from {total} keywords in {location.title()}.")
     api_calls = build_valueserp_calls(keywords, location)
     kw_stack = list()
     kw_stack_length = len(kw_stack)
-    print(f"collecting serps suggestions for {len(keywords)} keywords ...")
     with ThreadPoolExecutor(max_workers=20) as executor:
         futures = executor.map(session.get, api_calls)
         for f in futures:
