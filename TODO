@@ -1,0 +1,24 @@
+Binary file src//.cli.py.swp matches
+Binary file src//.onpage.py.swp matches
+src//urlmap.py:    # FIXME: see if it'd be possible to model the ctr distribution to generate expected ctr values past the top twenty positions
+src//onpageold.py:# TODO: add functionality to create the content brief itself (?) along with the suggestions
+src//onpageold.py:# TODO: explain this in docstring above too
+src//onpageold.py:# TODO: add mobile friendliness api, pagespeed api
+src//onpageold.py:# TODO: add (??)    schema = html.xpath("//*[@itemtype]/@itemtype")
+src//onpageold.py:# TODO: add (??)    meta_names = html.xpath("//meta/@name")
+src//onpageold.py:# TODO: add (??)    meta_contents = html.xpath("//meta/@content")
+src//onpageold.py:# TODO: add (??)    img_alts = html.xpath("//img/@alt")
+src//onpageold.py:# TODO: add (??)    img_links = html.xpath("//img/@src")
+src//onpageold.py:# TODO: add (??)    links = html.xpath("//@href")
+src//onpageold.py:# TODO: add (??)    hreflang = html.xpath("//*[@hreflang]/@hreflang")
+src//onpage.py:# TODO: onpage add pagespeed (desktop + mobile) w/ link to report
+src//onpage.py:# TODO: onpage add mobile friendliness
+src//onpage.py:# TODO: onpage add title len, description len, primary kw in meta and title
+src//onpage.py:# TODO: onpage add search volumes for term and terms altogether (semrush batch keyword overview api)
+src//onpage.py:# TODO: onpage add schema / structured data / html.xpath("//*[@itemtype]/@itemtype")
+src//onpage.py:# TODO: onpage add statuscode
+src//onpage.py:# TODO: the onpage tool should output a spreadsheet that extends the template > https://docs.google.com/spreadsheets/d/1Iu6UWPEPBKgBz1eoNLrKALftUCmcgfsPjNJv8GcUuvY/edit?usp=sharing
+src//onpage.py:# TODO: onpage allow users to input list of pages
+src//cli.py:    # TODO: finish onpage
+src//cli.py:    # TODO: add file argument to onpage to allow users to update already existing file
+src//cli.py:        # TODO: onpage check how to read the upload arguments to update the file
