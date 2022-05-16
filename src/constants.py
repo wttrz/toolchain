@@ -1,3 +1,8 @@
+"""
+Constant values for reuse across the codebase.
+"""
+
+
 VALUESERP_LOCATIONS = {
     "Norway": ["google.no", "no", "no"],
     "Sweden": ["google.se", "se", "sv"],
