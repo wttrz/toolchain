@@ -2,106 +2,73 @@
 Cluster a list of keywords.
 
 This algorithm computes the pairwise editing distance between each keyword.
-The editing distance measures how different any two keywords are from each other. 
+The editing distance measures how different any two keywords are from each other.
 The higher the number, the more different the keywords are.
 
-Then, it clusters the keywords using the Affinity Propagation algorithm.
+Then, it clusters the keywords similarities using the Affinity Propagation algorithm.
 Affinity Propagation is a clustering algorithm that generates clusters automatically.
 It finds exemplars in the dataset (representative elements) and creates clusters around them.
 It outputs a one-level clustering output that works on keyword lists in any language.
 
-The Leven (Levenshtein) and Damerau (Levenshtein-Damerau) algorithms are similar.
-The default, Leven, will work in most cases. The algorithm gets slower as damping increases.
-However, a higher damping factor might increase cluster accuracy.
+A higher damping factor makes the algorithm slower but might increase cluster accuracy.
+The algorithm is not always perfect and might mislabel some keywords. Review the output.
 
 References:
 
 > http://genes.toronto.edu/affinitypropagation/faq.html
 > https://en.wikipedia.org/wiki/Levenshtein_distance
-> https://en.wikipedia.org/wiki/Damerau%E2%80%93Levenshtein_distance
+> https://blog.paperspace.com/implementing-levenshtein-distance-word-autocomplete-autocorrect/
 """
 
-import io
 import itertools
 import sys
+from pathlib import Path
+from typing import Any, List
 
 import numpy as np
 import pandas as pd
 from sklearn.cluster import AffinityPropagation
 
+from src.formatting import fprint
 
-def levenshtein(s1, s2):
-    if len(s1) > len(s2):
-        s1, s2 = s2, s1
-    distances = range(len(s1) + 1)
-    for idx2, char2 in enumerate(s2):
-        new_distances = [idx2 + 1]
-        for idx1, char1 in enumerate(s1):
-            if char1 == char2:
-                new_distances.append(distances[idx1])
+
+def levenshtein(string1: str, string2: str) -> int:
+    fprint("info", f"calculating distance between {string1} -> {string2}")
+    n = len(string1)
+    m = len(string2)
+    d = [[0 for x in range(n + 1)] for y in range(m + 1)]
+    for i in range(1, m + 1):
+        d[i][0] = i
+    for j in range(1, n + 1):
+        d[0][j] = j
+    for j in range(1, n + 1):
+        for i in range(1, m + 1):
+            if string1[j - 1] is string2[i - 1]:
+                delta = 0
             else:
-                new_distances.append(
-                    1
-                    + min(
-                        (
-                            distances[idx1],
-                            distances[idx1 + 1],
-                            new_distances[-1],
-                        )
-                    )
-                )
-        distances = new_distances
-    return distances[-1]
+                delta = 1
+            d[i][j] = min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + delta)
+    return d[m][n]
 
 
-def damerau(s1, s2):
-    d = dict()
-    len_str1 = len(s1)
-    len_str2 = len(s2)
-    for i in range(-1, len_str1 + 1):
-        d[(i, -1)] = i + 1
-    for j in range(-1, len_str2 + 1):
-        d[(-1, j)] = j + 1
-    for i in range(len_str1):
-        for j in range(len_str2):
-            if s1[i] == s2[j]:
-                cost = 0
-            else:
-                cost = 1
-            d[(i, j)] = min(
-                d[(i - 1, j)] + 1,
-                d[(i, j - 1)] + 1,
-                d[(i - 1, j - 1)] + cost,
-            )
-            if i and j and s1[i] == s2[j - 1] and s1[i - 1] == s2[j]:
-                d[(i, j)] = min(d[(i, j)], d[i - 2, j - 2] + cost)
-    return d[len_str1 - 1, len_str2 - 1]
-
-
-def cluster_keywords(searches, similarity, damping, fpath):
-    words = np.asarray(searches)
-    if similarity != "leven" and similarity != "damerau":
-        sys.exit("The similarity metric should be either leven or damerau.")
+def cluster_keywords(searches: List[str], damping: float, fpath: Path) -> pd.DataFrame:
+    words: np.ndarray[Any, Any] = np.asarray(searches)
     if damping < 0.5 or damping > 1.0:
-        sys.exit("The damping factor should be between 0.5 and 1.0")
-    if similarity == "leven":
-        print(f"[info] computing levenshtein similarity for {len(words)} keywords ...")
-        distance_matrix = -1 * np.array(
-            [[levenshtein(w1, w2) for w1 in words] for w2 in words]
-        )
-    if similarity == "damerau":
-        print(f"computing damerau similarity for {len(words)} keywords ...")
-        distance_matrix = -1 * np.array([[damerau(w1, w2) for w1 in words] for w2 in words])
+        fprint("error", "the damping factor should be a number between 0.5 and 1.0")
+        sys.exit()
+    fprint("info", f"computing levenshtein similarity for {len(words)} keywords")
+    distance_matrix = -1 * np.array([[levenshtein(w1, w2) for w1 in words] for w2 in words])
     affprop = AffinityPropagation(affinity="precomputed", damping=damping, max_iter=1000)
     affprop.fit(distance_matrix)
     datasets = list()
-    print("[info] applying labels ...")
+    fprint("info", "applying labels to clusters")
     for label in np.unique(affprop.labels_):
         exemplar = searches[affprop.cluster_centers_indices_[label]]
-        cluster = np.unique(words[np.nonzero(affprop.labels_ == label)])
+        cluster: np.ndarray[Any, Any] = np.unique(words[np.nonzero(affprop.labels_ == label)])
         zipped = list(zip(cluster, itertools.cycle([exemplar])))
         data = pd.DataFrame(zipped, columns=["keywords", "cluster"])
         datasets.append(data)
     dataframe = pd.concat(datasets, ignore_index=True)
     dataframe.to_csv(fpath)
+    fprint("info", f"clustering completed ~ find your output @ {fpath}")
     return dataframe
