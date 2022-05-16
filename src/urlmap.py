@@ -1,42 +1,46 @@
 """
 Map queries to individual pages.
 
-This algorithm finds which pages has the highest potential to be optimized for a given keyword.
-Given a keyword list and a domain, it maps each keyword with the page with the best score.
+This algorithm finds which page has the highest potential to be optimized for a given keyword.
+Given a list of keywords and a domain, it maps each keyword with the page with the best score.
 
-The score is computed using Search Volume, CTR and (keyword) Position.
-Only keywords for which the domain rank between position 1 to 20 are mapped.
+By default, the algorithm collects all the keywords associated with the domain from SEMRush.
 
-The limit determines how many rows to retrieve from the database.
-When providing a file of keywords, it is also used to find the keywords in the database.
+The page score is computed using Search Volume, CTR and (keyword) Position.
+
+> score = (search volume * ctr) / position
+
+Only keywords for which the domain ranks between position 1 to 20 are mapped.
+
+The rows option determines how many rows to retrieve from the SEMRush database.
+This can be useful to test the output or save SEMRush credits.
+
+When providing a file with keywords, it is mapped against all the keywords in the database.
+The output always contains the SEMRush data as well, use --no-semrush to skip that data.
+The --no-semrush option only works when a file of keywords have been provided.
+
 When a keyword is not found in the database, the algorithm suggests creating a new page.
-This does not mean that the domain is not ranking for the term, but that SEMRush has no data for it.
+The domain might still be ranking for the term, however, SEMRush has no data for it.
 Either way, the algorithm recommends creating new content to target the keyword.
+
+The --remove option can be used to filter the SEMRush data.
+Patterns with slashes e.g., '/path' or '/path/' will exclude pages containing the 'path'.
+Patterns without slashes e.g., 'term' will exclude keywords containing the 'term'.
 """
 
 import io
 import sys
+from pathlib import Path
+from typing import List
 
 import pandas as pd
-import requests
 
-from src.authentication import get_api_credit, get_api_key
-
-
-def get_domain_queries(domain, database, limit):
-    apikey = get_api_key("semrush")
-    get_api_credit("valueserp")
-    databases = ["SE", "NO", "DK", "FI", "UK", "US"]
-    if database.upper() not in databases:
-        sys.exit("[error] unsupported database")
-    url = f"https://api.semrush.com/?type=domain_organic&key={apikey}"
-    export_columns = f"&export_columns=Ph,Ur,Po,Nq&domain={domain}"
-    display = f"&display_sort=nq_desc&display_limit={limit}&database={database}"
-    api_call = url + export_columns + display
-    return requests.get(api_call)
+from src.apicalls import query_semrush
+from src.formatting import fprint
 
 
-def set_score(data):
+def set_score(data: pd.DataFrame) -> pd.DataFrame:
+    # FIXME: see if it'd be possible to model the ctr distribution to generate expected ctr values past the top twenty positions
     ctr = {
         1: 0.329,
         2: 0.1534,
@@ -65,24 +69,43 @@ def set_score(data):
     data["score"] = round((data["search volume"] * data["ctr"]) / data["position"], 2)
     pairs = data.groupby("keyword").head(1).sort_values("score", ascending=False)
     output = pairs[(pairs["position"].isnull()) | (pairs["position"] <= 20)].copy()
-    output["url"].fillna("no mapping - create new page", inplace=True)
-    return output.reset_index(drop=True).fillna(0)
+    output["url"].fillna("unmapped - create new page", inplace=True)
+    return output.reset_index(drop=True)
 
 
-def map_domain(domain, database, limit, upload, fpath):
-    print(f"[info] mapping {domain} with keywords for {database}")
-    response = get_domain_queries(domain, database, limit)
+def map_domain(domain: str, database: str, rows: int, upload: str, fpath: Path, semrush: bool, cut: List[str]) -> pd.DataFrame:
+    if any(x in domain for x in ["http", "www"]):
+        fprint("error", "domain should not contain http(s) or www")
+        sys.exit()
+    fprint("info", f"mapping keywords to {domain} - location: {database}")
+    response = query_semrush(domain, database, rows)
     if "NOTHING" in response.text:
         empty_data = pd.DataFrame(columns=["keyword"])
         empty_data.to_csv(fpath)
-        sys.exit("[error] no data found in semrush")
+        fprint("error", f"no data found in semrush for {domain}")
+        sys.exit()
     api_data = pd.read_csv(io.StringIO(response.text), header=0, sep=";")
     api_data.columns = api_data.columns.str.lower()
+    if cut:
+        regex_paths = "|".join([i.replace("/", "") for i in cut if "/" in i])
+        regex_keywords = "|".join([i for i in cut if "/" not in i])
+        cut_paths = regex_paths if regex_paths != "" else None
+        cut_keywords = regex_keywords if regex_keywords != "" else None
+        if cut_paths:
+            api_data = api_data.loc[~api_data["url"].str.contains(cut_paths)]
+        if cut_keywords:
+            api_data = api_data.loc[~api_data["keyword"].str.contains(cut_keywords)]
+    mapped = pd.DataFrame()
     if upload:
-        upload_dataframe = pd.DataFrame(upload, columns=["keyword"])
-        merged = upload_dataframe.merge(api_data, on="keyword", how="outer")
+        upload_data = pd.DataFrame(upload, columns=["keyword"])
+        merged = upload_data.merge(api_data, on="keyword", how="outer", indicator=True)
         mapped = set_score(merged)
+        if semrush is False:
+            mapped = mapped[mapped["_merge"].str.contains("both|left_only")]
     else:
         mapped = set_score(api_data)
+    if "_merge" in mapped:
+        mapped.drop(columns=["_merge"], inplace=True)
     mapped.to_csv(fpath)
-    return mapped
+    fprint("info", f"mapping completed ~ find your output @ {fpath}")
+    return mapped.fillna(0)
