@@ -8,6 +8,7 @@ References:
 """
 
 import sys
+from typing import Any
 
 import requests
 
@@ -55,3 +56,21 @@ def query_semrush(domain: str, location: str, rows: int) -> requests.Response:
     display = f"&display_sort=nq_desc&display_limit={rows}&database={database}"
     api_call = url + export_columns + display
     return requests.get(api_call)
+
+
+def query_pagespeed(url: str) -> Any:
+    fprint("info", f"collecting lighthouse mobile pagespeed data for {url}")
+    apikey = get_api_key("pd-tech-seo")
+    payload = {"url": url, "key": apikey, "strategy": "mobile"}
+    endpoint = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
+    response = session.get(endpoint, params=payload).json()
+    return response["lighthouseResult"]["categories"]["performance"]["score"]
+
+
+def query_mobile_friendliness(url: str) -> Any:
+    fprint("info", f"collecting mobile friendliness data for {url}")
+    apikey = get_api_key("pd-tech-seo")
+    payload = {"url": url, "key": apikey}
+    endpoint = "https://searchconsole.googleapis.com/v1/urlTestingTools/mobileFriendlyTest:run"
+    response = session.post(endpoint, data=payload).json()
+    return response["mobileFriendliness"]
