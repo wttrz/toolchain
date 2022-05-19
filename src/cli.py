@@ -17,7 +17,7 @@ from src.formatting import fprint
 from src.kwlist import __doc__ as kwlist_doc
 from src.kwlist import get_kwlist
 from src.onpage import __doc__ as onpage_doc
-from src.onpage import compile_onpage, create_brief, get_page_metadata
+from src.onpage import compile_onpage, get_page_metadata
 from src.urlmap import __doc__ as urlmap_doc
 from src.urlmap import map_domain
 
@@ -27,7 +27,7 @@ semver = "v0.0.4"
 def get_arguments() -> argparse.Namespace:
 
     rfile = argparse.FileType("r", encoding="utf-8")
-    defaulthelp = argparse.ArgumentDefaultsHelpFormatter
+    # defaulthelp = argparse.ArgumentDefaultsHelpFormatter
     rawdesc = argparse.RawDescriptionHelpFormatter
 
     parser = argparse.ArgumentParser(description="SEO Operations.")
@@ -60,15 +60,11 @@ def get_arguments() -> argparse.Namespace:
     urlmap.add_argument("--file", type=rfile, metavar="FILEPATH", help="keyword file (.txt or .csv) - should not contain header row")
     urlmap.add_argument("--no-semrush", action="store_false", help="remove semrush data from output (default = false)")
 
-    # TODO: finish onpage
     onpage = subparsers.add_parser(name="onpage", formatter_class=rawdesc, description=onpage_doc, help="on page optimization")
     onpage.add_argument("url", type=str, help="url to optimize")
     onpage.add_argument("term", type=str, help="main search term to optimize")
     onpage.add_argument("--terms", type=str, metavar="TERM", nargs="*", help="secondary search terms")
     onpage.add_argument("--location", type=str, metavar="COUNTY", default="sweden", help="location (default = sweden)")
-    # TODO: add file argument to onpage to allow users to update already existing file
-    # onpage.add_argument("--file", type=rfile, metavar="FILEPATH", help="file to update")
-    onpage.add_argument("--file", type=str, metavar="FILEPATH", help="file to update")
 
     return parser.parse_args()
 
@@ -101,7 +97,7 @@ def main() -> None:
         exclusions = arguments.remove
         upload = arguments.file.read().splitlines() if arguments.file else None
         fpath = pathlib.Path(f"~/Desktop/urlmap_{uid}.csv").expanduser()
-        if keep_semrush == False and not upload:
+        if keep_semrush is False and not upload:
             fprint("error", "the --no-semrush option requires a --file FILEPATH")
             sys.exit()
         map_domain(domain, database, rows, upload, fpath, keep_semrush, exclusions)
@@ -110,13 +106,13 @@ def main() -> None:
         term = arguments.term
         terms = arguments.terms
         location = arguments.location
-        print("This operation is still a work in progress ...")
+        # print("This operation is still a work in progress ...")
         # TODO: onpage check how to read the upload arguments to update the file
         # upload = arguments.file.read()
         # upload = pathlib.Path(arguments.file) if arguments.file else None
         # fpath = pathlib.Path(f"~/Desktop/onpage_{uid}.txt").expanduser()
         fpath = pathlib.Path(f"~/Desktop/onpage_{uid}.docx").expanduser()
-        # compile_onpage(url, term, terms, location, fpath)
+        compile_onpage(url, term, terms, location, fpath)
         # create_brief(url, location, fpath)
     if arguments.command == "pagemeta":
         url = arguments.url
