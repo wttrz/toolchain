@@ -21,13 +21,16 @@ from src.formatting import fprint
 
 
 def get_api_key(api_name: str) -> Optional[str]:
-    if api_name not in ["semrush", "valueserp"]:
+    supported_apis = ["semrush", "valueserp", "pd-tech-seo"]
+    if api_name not in supported_apis:
         fprint("error", f"{api_name} is not supported")
         sys.exit()
     if api_name == "semrush":
         return os.environ.get("SEMRUSHKEY")
     if api_name == "valueserp":
         return os.environ.get("VALUESERPKEY")
+    if api_name == "pd-tech-seo":
+        return os.environ.get("PDTECHSEO")
     return None
 
 
