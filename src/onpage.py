@@ -3,32 +3,27 @@ On page optimization suggestions.
 
 This module collects metadata from the SERPs for a set of search terms.
 The metadata can then be used to support on page optimization for a given page.
-"""
 
-# TODO: onpage add pagespeed (desktop + mobile) w/ link to report
-# TODO: onpage add mobile friendliness
-# TODO: onpage add title len, description len, primary kw in meta and title
-# TODO: onpage add search volumes for term and terms altogether (semrush batch keyword overview api)
-# TODO: onpage add schema / structured data / html.xpath("//*[@itemtype]/@itemtype")
-# TODO: onpage add statuscode
-# TODO: the onpage tool should output a spreadsheet that extends the template > https://docs.google.com/spreadsheets/d/1Iu6UWPEPBKgBz1eoNLrKALftUCmcgfsPjNJv8GcUuvY/edit?usp=sharing
-# TODO: onpage allow users to input list of pages
-# https://python-docx.readthedocs.io/en/latest/
+References:
+
+> https://python-docx.readthedocs.io/en/latest/
+> https://webkul.com/blog/create-word-document-in-python-odoo-python-docx/
+> https://mlhive.com/2022/03/create-and-modify-word-docx-files-using-python-docx
+"""
 
 import datetime
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from statistics import mean
+from typing import Any, Dict, List, Union
 
 import lxml.html
-import numpy as np
 import requests
 from docx import Document
 
-from src.apicalls import query_valueserp
-from src.authentication import get_api_credit, get_api_key
+from src.apicalls import query_mobile_friendliness, query_pagespeed, query_valueserp
 from src.constants import USER_AGENT
-from src.formatting import fprint
+from src.formatting import flatten_list, fprint
 from src.kwlist import collect_related
 
 session = requests.Session()
@@ -105,7 +100,6 @@ def get_paragraphs(response: requests.Response) -> Any:
 
 
 def get_wordcount(response: requests.Response) -> int:
-    # html = lxml.html.fromstring(response.content)
     title = " ".join(get_titles(response))
     h1s = " ".join(get_h1s(response))
     h2s = " ".join(get_h2s(response))
@@ -114,11 +108,22 @@ def get_wordcount(response: requests.Response) -> int:
     return len(all_text.split())
 
 
+def get_jsonld(response: requests.Response) -> Any:
+    html = lxml.html.fromstring(response.content)
+    jsonscripts = html.xpath("//script[@type='application/ld+json']//text()")
+    if jsonscripts:
+        return jsonscripts[0].replace("\t", "")
+    else:
+        return
+
+
 def get_page_metadata(url: str) -> Dict[str, Any]:
+    fprint("info", f"collecting page metadata for {url}")
     metadata = dict()
     response = get_response(url)
     metadata.update(
         {
+            "status_code": response.status_code,
             "titles": get_titles(response),
             "descriptions": get_descriptions(response),
             "h1s": get_h1s(response),
@@ -129,15 +134,14 @@ def get_page_metadata(url: str) -> Dict[str, Any]:
             "links": get_links(response),
             "image_links": get_image_links(response),
             "meta_robots": get_metarobots(response),
+            "json_ld": get_jsonld(response),
             "wordcount": get_wordcount(response),
         }
     )
     return metadata
 
 
-def create_brief(url: str, location: str, fpath: Path):
-    # https://webkul.com/blog/create-word-document-in-python-odoo-python-docx/
-    # https://mlhive.com/2022/03/create-and-modify-word-docx-files-using-python-docx
+def create_brief(url: str, term: str, terms: List[str], location: str, pagedata: Dict[str, Any], serpsdata: Dict[str, Any], fpath: Path) -> None:
     document = Document()
     section = document.sections[0]
     header = section.header
@@ -145,40 +149,97 @@ def create_brief(url: str, location: str, fpath: Path):
     header_paragraph.text = url
     document.add_heading("Content Brief", 0)
     timestamp = datetime.datetime.now()
-    # p = document.add_paragraph(f"page: {url} ")
     p = document.add_paragraph(f"completion date: {timestamp.strftime('%Y-%m-%d')} ")
-    # p.add_run(f"time: {timestamp.strftime('%Y-%m-%d %H:%M:%S')} ").bold = True
-    # p.add_run(f"location: {location}.").italic = True
+    document.add_paragraph(f"main keyword: {term}")
+    document.add_paragraph(f"seconday keywords: {', '.join(terms)}")
+    document.add_paragraph(f"page wordcount: {pagedata['wordcount']}")
+    document.add_paragraph(f"average serps wordcount: {round(mean(serpsdata['wordcounts']))}")
+    document.add_paragraph(f"mobile pagespeed: {query_pagespeed(url)}")
+    document.add_paragraph(f"mobile friendliness: {query_mobile_friendliness(url)}")
+    document.add_heading("Recommendations", level=1)
+    document.add_paragraph("Specialist Suggestions.", style="Intense Quote")
+    p = document.add_paragraph()
+    p.add_run("Recommended Page Title").bold = True
+    document.add_paragraph("ipsum lorem")
+    p = document.add_paragraph()
+    p.add_run("Recommended Page Meta Description").bold = True
+    document.add_paragraph("ipsum lorem")
+    p = document.add_paragraph()
+    p.add_run("Recommended Page H1").bold = True
+    document.add_paragraph("ipsum lorem")
+    p = document.add_paragraph()
+    p.add_run("Recommended Page H2s").bold = True
+    document.add_paragraph("ipsum lorem")
+    document.add_page_break()
     document.add_heading("Page Metadata", level=1)
     document.add_paragraph("Data gathered from the inspected page.", style="Intense Quote")
-    document.add_paragraph("Page title(s)")
-    document.add_paragraph("first item in unordered list", style="List Bullet")
-    document.add_paragraph("second item in unordered list", style="List Bullet")
-    document.add_paragraph("Page meta description(s)")
-    document.add_paragraph("first item in ordered list", style="List Number")
-    document.add_paragraph("second item in ordered list", style="List Number")
+    p = document.add_paragraph()
+    p.add_run("Page Title(s)").bold = True
+    for i in pagedata["titles"]:
+        document.add_paragraph(i, style="List Bullet")
+    p = document.add_paragraph()
+    p.add_run("Page Meta Description(s)").bold = True
+    for i in pagedata["descriptions"]:
+        document.add_paragraph(i, style="List Bullet")
+    p = document.add_paragraph()
+    p.add_run("Page H1s(s)").bold = True
+    for i in pagedata["h1s"]:
+        document.add_paragraph(i, style="List Bullet")
+    p = document.add_paragraph()
+    p.add_run("Page H2s(s)").bold = True
+    for i in pagedata["h2s"]:
+        document.add_paragraph(i, style="List Bullet")
+    p = document.add_paragraph()
+    p.add_run("Page Hreflang").bold = True
+    for i in pagedata["hreflang"]:
+        document.add_paragraph(i, style="List Bullet")
     document.add_page_break()
+    document.add_heading("SERPs Metadata", level=1)
+    document.add_paragraph("Data gathered from the SERPs", style="Intense Quote")
+    p = document.add_paragraph()
+    p.add_run("SERPs URLs").bold = True
+    for i in serpsdata["urls"]:
+        document.add_paragraph(i, style="List Bullet")
+    p = document.add_paragraph()
+    p.add_run("SERPs Related Searches & Questions").bold = True
+    for i in pagedata["related_searches"]:
+        document.add_paragraph(i, style="List Bullet")
+    p = document.add_paragraph()
+    p.add_run("SERPs Titles").bold = True
+    for i in serpsdata["titles"]:
+        document.add_paragraph(i, style="List Bullet")
+    p = document.add_paragraph()
+    p.add_run("SERPs Meta Descriptions").bold = True
+    for i in serpsdata["descriptions"]:
+        document.add_paragraph(i, style="List Bullet")
+    p = document.add_paragraph()
+    p.add_run("SERPs H1s").bold = True
+    for i in serpsdata["h1s"]:
+        document.add_paragraph(i, style="List Bullet")
+    p = document.add_paragraph()
+    p.add_run("SERPs H2s").bold = True
+    for i in serpsdata["h2s"]:
+        document.add_paragraph(i, style="List Bullet")
+    document.add_page_break()
+    document.add_heading("Page Schema / JSON-LD", level=1)
+    if pagedata.get("json_ld"):
+        for i in pagedata["json_ld"]:
+            document.add_paragraph(i, style="List Bullet")
+    else:
+        document.add_paragraph("None")
+    document.add_paragraph(pagedata["json_ld"], style="List Bullet")
+    document.add_heading("SERPs Schema / JSON-LD", level=1)
+    if serpsdata.get("json_ld"):
+        for i in serpsdata["json_ld"]:
+            document.add_paragraph(i, style="List Bullet")
+    else:
+        document.add_paragraph("None")
+    p = document.add_paragraph()
     document.save(fpath)
-
-    # document = Document()
-    # section = document.sections[0]
-    # header = section.header
-    # paragraph = header.paragraphs[0]
-    # paragraph.text = url
-    # document.add_heading("On Page Brief", 0)
-    # document.add_heading("Page Metadata", 3)
-    # page_intro = document.add_paragraph("Page metadata for selected URL.")
-    # document.add_heading("SERPs Metadata", 3)
-    # serps_intro = document.add_paragraph("Page metadata for ranking domains in the SERPs.")
-    # document.add_paragraph("serp pages titles")
-    # mylist = ["my", "fgg", "lff"]
-    ## document.add_paragraph(", ".join(mylist))
-    # for i in mylist:
-    #    document.add_paragraph(i)
-    # document.save(fpath)
+    fprint("info", f"on page brief completed ~ find your output @ {fpath}")
 
 
-def compile_onpage(url: str, term: str, terms: List[str], location: str, fpath: Path):
+def compile_onpage(url: str, term: str, terms: List[str], location: str, fpath: Path) -> Dict[str, Any]:
     fprint("info", f"running onpage analysis for {url} - location: {location}")
     if terms:
         terms.append(term)
@@ -195,143 +256,26 @@ def compile_onpage(url: str, term: str, terms: List[str], location: str, fpath: 
                 organic_results.append(i["link"])
     page_metadata = get_page_metadata(url)
     page_metadata.update({"related_searches": related_results})
-    print(page_metadata)  # page metadata should be used on the second page
-
-
-# def create_brief(url, terms, location, page, related, serps, fpath):
-#    main_query = terms[-1]
-#    secondary_queries = ", ".join(terms)
-#    nonempty_serps_titles = set(list(filter(None, serps["titles"])))
-#    nonempty_serps_descriptions = set(list(filter(None, serps["descriptions"])))
-#    nonempty_serps_h1s = set(list(filter(None, serps["h1s"])))
-#    nonempty_serps_h2s = set(list(filter(None, serps["h2s"])))
-#    nonempty_page_titles = set(list(filter(None, page["titles"])))
-#    nonempty_page_descriptions = set(list(filter(None, page["descriptions"])))
-#    nonempty_page_h1s = set(list(filter(None, page["h1s"])))
-#    nonempty_page_h2s = set(list(filter(None, page["h2s"])))
-#    serps_avg_wordcounts = int(np.mean(serps["wordcounts"]))
-#
-#    with open(fpath, "w") as f:
-#        ndashes = 150
-#        f.write("Content Brief\n")
-#        f.write("-" * ndashes)
-#        f.write(f"\n\nTarget Page: {url}\n")
-#        f.write(f"Main Query: {main_query}\n")
-#        f.write(f"Secondary Queries: {secondary_queries}\n")
-#        f.write(f"Location: {location}\n\n")
-#        f.write(f"SERPS Organic Results Pages:\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.writelines("\n".join(serps["urls"]))
-#        f.write(f"\n\nSERPS Related Searches & Questions: {len(related)}\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.writelines("\n".join(related))
-#        f.write(f"\n\nSERPs titles:\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.writelines("\n".join(nonempty_serps_titles))
-#        f.write(f"\n\nSERPs descriptions:\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.writelines("\n".join(nonempty_serps_descriptions))
-#        f.write(f"\n\nSERPs h1s:\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.writelines("\n".join(nonempty_serps_h1s))
-#        f.write(f"\n\nSERPs h2s:\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.writelines("\n".join(nonempty_serps_h2s))
-#        f.write(f"\n\nSERPs Average Page Word Count: {serps_avg_wordcounts}\n")
-#        f.write("-" * ndashes)
-#        f.write(f"\n\nTarget Page Canonical: {', '.join(page['canonical'])}\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.write(f"\nTarget Page Meta Robots: {', '.join(page['meta_robots'])}\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.write(f"\nTarget Page Wordcount: {page['wordcount']}\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.write(f"\nTarget Page Titles: {len(nonempty_page_titles)}\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.writelines("\n".join(nonempty_page_titles))
-#        f.write(f"\n\nTarget Page Descriptions: {len(nonempty_page_descriptions)}\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.writelines("\n".join(nonempty_page_descriptions))
-#        f.write(f"\n\nTarget Page H1s: {len(nonempty_page_h1s)}\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.writelines("\n".join(nonempty_page_h1s))
-#        f.write(f"\n\nTarget Page H2s: {len(nonempty_page_h2s)}\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.writelines("\n".join(nonempty_page_h2s))
-#        f.write(f"\n\nTarget Page Hreflang: {len(page['hreflang'])}\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.writelines("\n".join(page["hreflang"]))
-#        f.write(f"\nTarget Page Alternate Links: {len(page['alternate_links'])}\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.writelines("\n".join(page["alternate_links"]))
-#        f.write(f"\n\nTarget Page Image Links: {len(page['image_links'])}\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.writelines("\n".join(page["image_links"]))
-#        f.write(f"\n\nTarget Page Links: {len(page['links'])}\n")
-#        f.write("-" * ndashes)
-#        f.write("\n")
-#        f.writelines("\n".join(page["links"]))
-#
-#
-# def suggest(url, term, terms, location, fpath, upload):
-#    if terms:
-#        terms.append(term)
-#        queries = [t.replace(" ", "+") for t in terms]
-#    else:
-#        queries = [term]
-#    organic_results = list()
-#    related_results = list()
-#    for i in queries:
-#        print(f"[info] collecting serps for {i}")
-#        # serps = query_valueserp(i, location)
-#        serps = query_valueserp(i, location).json()
-#        for i in serps["organic_results"]:
-#            if "domain" in i:
-#                organic_results.append(i["link"])
-#        if "related_searches" in serps:
-#            related_results.append([i["query"] for i in serps["related_searches"]])
-#        if "related_questions" in serps:
-#            related_results.append([i["question"] for i in serps["related_questions"]])
-#    flat_related = [i for l in related_results for i in l]
-#    page_data = get_page_metadata(url)
-#    serps_metadata = dict()
-#    serps_titles = list()
-#    serps_descriptions = list()
-#    serps_h1s = list()
-#    serps_h2s = list()
-#    serps_wordcounts = list()
-#    for i in organic_results:
-#        print(f"[info] collecting page metadata for {i}")
-#        metadata = get_page_metadata(i)
-#        serps_titles.append(metadata["titles"])
-#        serps_descriptions.append(metadata["descriptions"])
-#        serps_h1s.append(metadata["h1s"])
-#        serps_h2s.append(metadata["h2s"])
-#        serps_wordcounts.append(metadata["wordcount"])
-#    serps_metadata.update(
-#        {
-#            "urls": organic_results,
-#            "titles": [i for l in serps_titles for i in l],
-#            "descriptions": [i for l in serps_descriptions for i in l],
-#            "h1s": [i for l in serps_h1s for i in l],
-#            "h2s": [i for l in serps_h2s for i in l],
-#            "wordcounts": serps_wordcounts,
-#        }
-#    )
-#    create_brief(url, queries, location, page_data, flat_related, serps_metadata, fpath)
-#    return
+    serps_metadata = dict()
+    serps_titles = list()
+    serps_descriptions = list()
+    serps_h1s = list()
+    serps_h2s = list()
+    serps_wordcounts = list()
+    for i in organic_results:
+        metadata = get_page_metadata(i)
+        serps_titles.append(metadata["titles"])
+        serps_descriptions.append(metadata["descriptions"])
+        serps_h1s.append(metadata["h1s"])
+        serps_h2s.append(metadata["h2s"])
+        serps_wordcounts.append(metadata["wordcount"])
+    serps_metadata = {
+        "urls": organic_results,
+        "titles": flatten_list(serps_titles),
+        "descriptions": flatten_list(serps_descriptions),
+        "h1s": flatten_list(serps_h1s),
+        "h2s": flatten_list(serps_h2s),
+        "wordcounts": serps_wordcounts,
+    }
+    create_brief(url, term, queries, location, page_metadata, serps_metadata, fpath)
+    return {"page_metadata": page_metadata, "serps_metadata": serps_metadata}
