@@ -113,6 +113,7 @@ def main() -> None:
         # fpath = pathlib.Path(f"~/Desktop/onpage_{uid}.txt").expanduser()
         fpath = pathlib.Path(f"~/Desktop/onpage_{uid}.docx").expanduser()
         compile_onpage(url, term, terms, location, fpath)
+        # compile_onpage(url, term, terms, location, fpath)
         # create_brief(url, location, fpath)
     if arguments.command == "pagemeta":
         url = arguments.url

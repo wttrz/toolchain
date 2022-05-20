@@ -1,8 +1,8 @@
 """
-On page optimization suggestions.
+On page optimization brief.
 
-This module collects metadata from the SERPs for a set of search terms.
-The metadata can then be used to support on page optimization for a given page.
+This module collects metadata from a page and the SERPs for a set of search terms.
+It then constructs a content brief in .docx format contaning the the metadata.
 
 References:
 
@@ -141,105 +141,118 @@ def get_page_metadata(url: str) -> Dict[str, Any]:
     return metadata
 
 
-def create_brief(url: str, term: str, terms: List[str], location: str, pagedata: Dict[str, Any], serpsdata: Dict[str, Any], fpath: Path) -> None:
+def strip_domain(url: str) -> str:
+    # strip domain and use it to create the fpath name together with the uuid
+    pass
+
+
+#    for i in pagedata["titles"]:
+#        document.add_paragraph(i, style="List Bullet")
+
+
+def create_brief(url, term, terms, pagedata, serpsdata, fpath):
     document = Document()
     section = document.sections[0]
     header = section.header
-    header_paragraph = header.paragraphs[0]
-    header_paragraph.text = url
+    header.paragraphs[0].text = url
     document.add_heading("Content Brief", 0)
     timestamp = datetime.datetime.now()
-    p = document.add_paragraph(f"completion date: {timestamp.strftime('%Y-%m-%d')} ")
-    document.add_paragraph(f"main keyword: {term}")
-    document.add_paragraph(f"seconday keywords: {', '.join(terms)}")
-    document.add_paragraph(f"page wordcount: {pagedata['wordcount']}")
-    document.add_paragraph(f"average serps wordcount: {round(mean(serpsdata['wordcounts']))}")
-    document.add_paragraph(f"mobile pagespeed: {query_pagespeed(url)}")
-    document.add_paragraph(f"mobile friendliness: {query_mobile_friendliness(url)}")
-    document.add_heading("Recommendations", level=1)
-    document.add_paragraph("Specialist Suggestions.", style="Intense Quote")
+    document.add_paragraph()
     p = document.add_paragraph()
-    p.add_run("Recommended Page Title").bold = True
-    document.add_paragraph("ipsum lorem")
+    p.add_run("Date: ").bold = True
+    p.add_run(f"{timestamp.strftime('%Y-%m-%d')}")
     p = document.add_paragraph()
-    p.add_run("Recommended Page Meta Description").bold = True
-    document.add_paragraph("ipsum lorem")
+    p.add_run("Author: ").bold = True
+    document.add_heading("Keyword Information", 1)
+    document.add_paragraph()
     p = document.add_paragraph()
-    p.add_run("Recommended Page H1").bold = True
-    document.add_paragraph("ipsum lorem")
+    p.add_run("Primary Query: ").bold = True
+    p.add_run(f"{term}")
     p = document.add_paragraph()
-    p.add_run("Recommended Page H2s").bold = True
-    document.add_paragraph("ipsum lorem")
+    p.add_run("Secondary Queries: ").bold = True
+    p.add_run(f"{', '.join(terms)}")
+    p = document.add_paragraph()
+    p.add_run("Comments:").bold = True
     document.add_page_break()
-    document.add_heading("Page Metadata", level=1)
-    document.add_paragraph("Data gathered from the inspected page.", style="Intense Quote")
+    document.add_heading("Recommendations", 1)
+    document.add_paragraph()
     p = document.add_paragraph()
-    p.add_run("Page Title(s)").bold = True
-    for i in pagedata["titles"]:
-        document.add_paragraph(i, style="List Bullet")
+    p.add_run("Recommended Title:").bold = True
     p = document.add_paragraph()
-    p.add_run("Page Meta Description(s)").bold = True
-    for i in pagedata["descriptions"]:
-        document.add_paragraph(i, style="List Bullet")
+    p.add_run("Recommended Description:").bold = True
     p = document.add_paragraph()
-    p.add_run("Page H1s(s)").bold = True
-    for i in pagedata["h1s"]:
-        document.add_paragraph(i, style="List Bullet")
+    p.add_run("Recommended H1s:").bold = True
     p = document.add_paragraph()
-    p.add_run("Page H2s(s)").bold = True
-    for i in pagedata["h2s"]:
-        document.add_paragraph(i, style="List Bullet")
+    p.add_run("Recommended H2s:").bold = True
     p = document.add_paragraph()
-    p.add_run("Page Hreflang").bold = True
-    for i in pagedata["hreflang"]:
-        document.add_paragraph(i, style="List Bullet")
+    p.add_run("Recommended Structured Data: ").bold = True
+    p = document.add_paragraph()
+    p.add_run("Recommended Word Count: ").bold = True
+    p.add_run(f"{round(mean(serpsdata['wordcounts']))}")
     document.add_page_break()
-    document.add_heading("SERPs Metadata", level=1)
-    document.add_paragraph("Data gathered from the SERPs", style="Intense Quote")
+    document.add_heading("Technical Health Checks", 1)
+    document.add_paragraph()
     p = document.add_paragraph()
-    p.add_run("SERPs URLs").bold = True
+    p.add_run("Mobile Friendliness: ").bold = True
+    p.add_run(f"{query_mobile_friendliness(url)}")
+    p = document.add_paragraph()
+    p.add_run("Page Speed: ").bold = True
+    p.add_run(f"{query_pagespeed(url)}")
+    document.add_page_break()
+    document.add_heading("Search Intent & Value Assessment", 1)
+    document.add_paragraph()
+    p = document.add_paragraph()
+    p.add_run("Competitors:").bold = True
     for i in serpsdata["urls"]:
-        document.add_paragraph(i, style="List Bullet")
+        document.add_paragraph(i)
     p = document.add_paragraph()
-    p.add_run("SERPs Related Searches & Questions").bold = True
-    for i in pagedata["related_searches"]:
-        document.add_paragraph(i, style="List Bullet")
+    p.add_run("Search Intent:").bold = True
     p = document.add_paragraph()
-    p.add_run("SERPs Titles").bold = True
-    for i in serpsdata["titles"]:
-        document.add_paragraph(i, style="List Bullet")
-    p = document.add_paragraph()
-    p.add_run("SERPs Meta Descriptions").bold = True
-    for i in serpsdata["descriptions"]:
-        document.add_paragraph(i, style="List Bullet")
-    p = document.add_paragraph()
-    p.add_run("SERPs H1s").bold = True
-    for i in serpsdata["h1s"]:
-        document.add_paragraph(i, style="List Bullet")
-    p = document.add_paragraph()
-    p.add_run("SERPs H2s").bold = True
-    for i in serpsdata["h2s"]:
-        document.add_paragraph(i, style="List Bullet")
+    p.add_run("Value To Provide:").bold = True
     document.add_page_break()
-    document.add_heading("Page Schema / JSON-LD", level=1)
-    if pagedata.get("json_ld"):
-        for i in pagedata["json_ld"]:
-            document.add_paragraph(i, style="List Bullet")
-    else:
-        document.add_paragraph("None")
-    document.add_paragraph(pagedata["json_ld"], style="List Bullet")
-    document.add_heading("SERPs Schema / JSON-LD", level=1)
-    if serpsdata.get("json_ld"):
-        for i in serpsdata["json_ld"]:
-            document.add_paragraph(i, style="List Bullet")
-    else:
-        document.add_paragraph("None")
+    document.add_heading("Page Meta Information", 1)
+    document.add_paragraph()
+    p = document.add_paragraph()
+    p.add_run("Current Page Titles:").bold = True
+    for i in pagedata["titles"]:
+        document.add_paragraph(i)
+    p = document.add_paragraph()
+    p.add_run("Current Page Descriptions:").bold = True
+    for i in pagedata["descriptions"]:
+        document.add_paragraph(i)
+    p = document.add_paragraph()
+    p.add_run("Current H1s:").bold = True
+    for i in pagedata["h1s"]:
+        document.add_paragraph(i)
+    p = document.add_paragraph()
+    p.add_run("Current H2s:").bold = True
+    for i in pagedata["h2s"]:
+        document.add_paragraph(i)
+    p = document.add_paragraph()
+    document.add_page_break()
+    document.add_heading("SERPs Meta Information", 1)
+    document.add_paragraph()
+    p = document.add_paragraph()
+    p.add_run("SERPs Titles:").bold = True
+    for i in serpsdata["titles"]:
+        document.add_paragraph(i)
+    p = document.add_paragraph()
+    p.add_run("SERPs Descriptions:").bold = True
+    for i in serpsdata["descriptions"]:
+        document.add_paragraph(i)
+    p = document.add_paragraph()
+    p.add_run("SERPs H1s:").bold = True
+    for i in serpsdata["h1s"]:
+        document.add_paragraph(i)
+    p = document.add_paragraph()
+    p.add_run("SERPs H2s:").bold = True
+    for i in serpsdata["h2s"]:
+        document.add_paragraph(i)
     p = document.add_paragraph()
     document.save(fpath)
-    fprint("info", f"on page brief completed ~ find your output @ {fpath}")
 
 
-def compile_onpage(url: str, term: str, terms: List[str], location: str, fpath: Path) -> Dict[str, Any]:
+def compile_onpage(url, term, terms, location, fpath):
     fprint("info", f"running onpage analysis for {url} - location: {location}")
     if terms:
         terms.append(term)
@@ -277,5 +290,5 @@ def compile_onpage(url: str, term: str, terms: List[str], location: str, fpath: 
         "h2s": flatten_list(serps_h2s),
         "wordcounts": serps_wordcounts,
     }
-    create_brief(url, term, queries, location, page_metadata, serps_metadata, fpath)
+    create_brief(url, term, queries, page_metadata, serps_metadata, fpath)
     return {"page_metadata": page_metadata, "serps_metadata": serps_metadata}
